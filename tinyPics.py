@@ -5,7 +5,7 @@ import os
 #===============tinypng python scripts for android=================== 
 #1, pip install --upgrade tinify
 #2, change your tinypng key
-#3, run
+#3, copy this file to your working dir, run it
 #===============tinypng python scripts for android=================== 
 
 
