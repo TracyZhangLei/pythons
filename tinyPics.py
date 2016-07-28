@@ -1,6 +1,14 @@
 import tinify
 import os
 
+
+#===============tinypng python scripts for android=================== 
+#1, pip install --upgrade tinify
+#2, change your tinypng key
+#3, run
+#===============tinypng python scripts for android=================== 
+
+
 tinify.key = 'your key'
 
 def get_filepaths(directory):
