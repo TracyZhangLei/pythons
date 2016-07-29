@@ -3,32 +3,32 @@ import os
 
 
 #===============tinypng python scripts for android=================== 
-#1, pip install --upgrade tinify
-#2, change your tinypng key
-#3, copy this file to your working dir, run it
+# step 1: run "pip install --upgrade tinify"
+# step 2: change your tinypng key
+# step 3: copy this file to your project res dir, run "python tinyPics.py"
 #===============tinypng python scripts for android=================== 
 
 
 tinify.key = 'your key'
 
-def get_filepaths(directory):
+def get_picpaths(directory):
     file_paths = []  # List which will store all of the full filepaths.
 
     for root, directories, files in os.walk(directory):
 	for filename in files:
 	    # Join the two strings in order to form the full filepath.
 	    filepath = os.path.join(root, filename)
-	    file_paths.append(filepath) 
+            if 'drawable' in filepath and 'intermediates' not in filepath and '.9.png' not in filepath:
+	      file_paths.append(filepath)
    
     return file_paths
 
-full_file_paths = get_filepaths(os.getcwd())
+full_pic_paths = get_picpaths(os.getcwd())
 
 types=['.png','.jpg']
 
-for f in full_file_paths:
-  if 'drawable' in filepath and 'intermediates' not in filepath:
+for f in full_pic_paths:
     for i in types:
-      if i in f and '.9.png' not in f:
+      if i in f:
         print "tinypng "+f
         tinify.from_file(f).to_file(f)
