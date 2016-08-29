@@ -1,1 +1,1 @@
-records some useful scripts,welcome for addation
+records some useful scripts,welcome for addiation
