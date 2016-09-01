@@ -15,7 +15,7 @@ import os
 #===============tinypng python scripts for android=================== 
 
 
-#tinify.key = 'your key'
+tinify.key = 'your key'
 
 def get_picpaths(directory):
     file_paths = []  # List which will store all of the full filepaths.
