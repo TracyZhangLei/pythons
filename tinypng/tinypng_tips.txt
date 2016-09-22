@@ -1,0 +1,1 @@
+We can use tinypng to compress a picture as much as 5 times until the compress percentage comes to 0%!
