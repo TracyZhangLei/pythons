@@ -100,13 +100,13 @@ def tiny(f,cwd):
             tiny(f,cwd)
     except ClientError:
         print "ClientError .."
-        return False
+        #return False
     except ServerError:
         print "ServerError .."
-        return False
+        #return False
     except ConnectionError:
         print "ConnectionError .."
-        return False
+        #return False
     
     return True
 
