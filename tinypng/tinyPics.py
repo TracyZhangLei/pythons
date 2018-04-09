@@ -1,7 +1,8 @@
 import tinify
 from tinify import AccountError, ClientError, ConnectionError, ServerError
-import linecache
 import os
+import threading
+import math
 #import requests.packages.urllib3
 #requests.packages.urllib3.disable_warnings()
 
@@ -18,21 +19,82 @@ import os
 #
 #===============tinypng python scripts for android===============
 
-def get_account_count():
-    count=0
-    with open ('tinypng/accounts.txt','r') as f:
-        count = sum(1 for line in f)
-    return count
+class AccountManager:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.accounts = {}
+        flag = False
+        with open('tinypng/accounts.txt', 'r') as f:
+            for line in f:
+                self.accounts[line] = True
+                if not flag:
+                    tinify.key = line
+                    flag = True
 
-def get_account(line):
-    line = int(line)
-    print "get account from line " , line
-    account = linecache.getline("tinypng/accounts.txt", line)
-    account = account.replace("\r\n", "")
-    account = account.replace("\r", "")
-    account = account.replace("\n", "")
-    print "try to use "+account
-    return account
+    def getAvailableAccount(self):
+        self.lock.acquire()
+        result = None
+        try:
+            for k, v in self.accounts.items():
+                if v :
+                    print '\ntry to use account:', k
+                    result = k
+        finally:
+            self.lock.release()
+        return result
+
+    def setAccountUnavailable(self, accountKey):
+        self.lock.acquire()
+        try:
+            if None != accountKey:
+                self.accounts[accountKey] = False
+                print '\nset account unavailable:', accountKey, self.accounts
+        finally:
+            self.lock.release()
+
+class Compresser(threading.Thread):
+
+    def __init__(self, filesToBeCompress, accountManager):
+        threading.Thread.__init__(self)
+        self.filesToBeCompress = filesToBeCompress
+        self.accountManager = accountManager
+
+    def run(self):
+        print '\nthread start...' + threading.currentThread().name
+        for f in self.filesToBeCompress:
+            if (not self.tiny(f, cwd)):
+                return
+
+    def tiny(self, f, cwd):
+        try:
+            tinify.from_file(f).to_file(f)
+            append_compressed_file(f, cwd)
+            print "tinypng " , f
+        except AccountError, e:
+            print "\nAccountError .. " + e.message, threading.currentThread().name
+            self.accountManager.setAccountUnavailable(tinify.key)
+            newKey = self.accountManager.getAvailableAccount()
+            if (None == newKey):
+                print "\nAll counts tried , finish"
+                exit(0)
+                return False
+            else:
+                tinify.key = newKey
+                self.tiny(f, cwd)
+        except ClientError, e1:
+            print "\nClientError ..", e1, f, threading.currentThread().name
+            # tiny(f,cwd)
+            # return False
+        except ServerError, e2:
+            print "\nServerError ..", e2, f, threading.currentThread().name
+            # tiny(f,cwd)
+            # return False
+        except ConnectionError, e3:
+            print "\nConnectionError ..", e3, f, threading.currentThread().name
+            # tiny(f,cwd)
+            # return False
+
+        return True
 
 def get_picpaths(directory):
     file_paths = []  # List which will store all of the full filepaths.
@@ -41,7 +103,7 @@ def get_picpaths(directory):
         for filename in files:
             # Join the two strings in order to from the full filepath.
             filepath = os.path.join(root, filename)
-            if not in_compressed_list(filepath,directory) and not in_white_list(filepath,directory) and 'intermediates' not in filepath and '.9' not in filepath:
+            if (filename.endswith(".jpg") or filename.endswith(".png") or filename.endswith(".jpeg")) and not in_compressed_list(filepath,directory) and not in_white_list(filepath,directory) and 'intermediates' not in filepath and '.9' not in filepath:
                 file_paths.append(filepath)
 
     return file_paths
@@ -54,7 +116,7 @@ def in_white_list(filepath,cwd):
         return False
     filepath=filepath.replace(cwd,'')
     if filepath in open("tinypng/white_list.txt").read():
-        print "*******"+ filepath + "******* in white_list , ignore"
+        print "\n*******"+ filepath + "******* in white_list , ignore"
         return True
     else:
         return False
@@ -67,7 +129,7 @@ def in_compressed_list(filepath,cwd):
         return False
     filepath=filepath.replace(cwd,'')
     if filepath in open("tinypng/compressed_file_list.txt").read():
-        print "====== " + filepath + " ====== in compressed_file_list , ignore"
+        print "\n====== " + filepath + " ====== in compressed_file_list , ignore"
         return True
     else:
         return False
@@ -81,58 +143,26 @@ def append_compressed_file(filepath,cwd):
     fp.write(filepath + "\n")
     fp.flush()
     fp.close()
-    
-def tiny(f,cwd):
-    try:
-        tinify.from_file(f).to_file(f)
-        append_compressed_file(f,cwd)
-        print "tinypng " + f
-    except AccountError,e:
-        print "AccountError .. "+e.message
-        global line
-        global account_sum
-        if(line > account_sum):
-            print "All counts tried , finish"
-            return False
+
+if __name__ == "__main__":
+    #cd to projectDir(tinypng parentDir)
+    os.chdir('..')
+    cwd=os.getcwd()
+    accountManager = AccountManager()
+    full_pic_paths = get_picpaths(cwd)
+    if len(full_pic_paths) <= 0:
+        print '\n====Warning!==== there is no image, or all images have been compressed according to compressed_file_list.txt, clear compressed_file_list.txt and try again\n'
+        exit(0)
+    threadCount = int(math.sqrt(len(full_pic_paths)))
+    groupSize = len(full_pic_paths)/threadCount
+    index=0
+    while index < threadCount :
+        if index < threadCount - 1:
+            files = full_pic_paths[index * groupSize: (index + 1) * groupSize]
         else:
-            tinify.key = get_account(line)
-            line = line + 1
-            tiny(f,cwd)
-    except ClientError:
-        print "ClientError .."
-        tiny(f,cwd)
-        #return False
-    except ServerError:
-        print "ServerError .."
-        tiny(f,cwd)
-        #return False
-    except ConnectionError:
-        print "ConnectionError .."
-        tiny(f,cwd)
-        #return False
-    
-    return True
+            files = full_pic_paths[index * groupSize: len(full_pic_paths)]
+        # print files
+        index = index + 1
+        Compresser(files, accountManager).start()
 
-
-#cd to projectDir(tinypng parentDir)
-os.chdir('..')
-
-line = 1
-account_sum = get_account_count()
-tinify.key = get_account(line)
-print "key:"+tinify.key
-line = line+1
-cwd=os.getcwd()
-full_pic_paths = get_picpaths(cwd)
-
-types = ['.png', '.jpg']
-finish = False
-for f in full_pic_paths:
-    if finish:
-        break
-    for i in types:
-        if i in f:
-            if(not tiny(f,cwd)):
-                finish = True
-                break
-            
+    print '====Done!===='
